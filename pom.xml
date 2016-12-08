@@ -50,7 +50,7 @@ under the License.
 	</scm>
 
 	<modules>
-		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
+		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
 		<module>flink-shaded-hadoop</module>
@@ -91,6 +91,11 @@ under the License.
 		<flink.forkCount>1C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
+		<!-- These properties will use as argLine parameter of Surefire plugin.
+		 We defined argLine as a property to avoid some issue with other plugins,
+		 which used parameters from argLine too-->
+		<argLine>-Xms256m -Xmx800m -XX:-UseGCOverheadLimit</argLine>
+		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
@@ -199,7 +204,6 @@ under the License.
 	</dependencies>
 
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
-	
 	<dependencyManagement>
 		<!-- WARN: 
 			DO NOT put 	guava, 
@@ -269,7 +273,7 @@ under the License.
 				<version>2.4</version>
 			</dependency>
 
-			<!-- commons collections needs to be pinned to this critical security fix version -->
+			<!--- commons collections needs to be pinned to this critical security fix version -->
 			<dependency>
 				<groupId>commons-collections</groupId>
 				<artifactId>commons-collections</artifactId>
@@ -776,6 +780,39 @@ under the License.
 				<flink-fast-tests-pattern>%regex[.*/[N-Z].*]</flink-fast-tests-pattern>
 			</properties>
 		</profile>
+		<profile>
+			<id>coverage</id>
+			<properties>
+				<flink.forkCount>1</flink.forkCount>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<version>${jacoco.version}</version>
+						<configuration>
+							<append>true</append>
+						</configuration>
+						<executions>
+							<execution>
+								<id>agent</id>
+								<goals>
+									<goal>prepare-agent</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>post-unit-test</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>report</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 
 	<build>
@@ -973,9 +1010,12 @@ under the License.
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
+						<mvn.forkNumber>0${surefire.forkNumber}</mvn.forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<!-- Do not define argLine here.
+					If you want to add\change options you should change argLine project property.
+					See http://www.eclemma.org/jacoco/trunk/doc/prepare-agent-mojo.html -->
 				</configuration>
 				<executions>
 					<execution>
