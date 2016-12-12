@@ -274,6 +274,8 @@ public class CSVReaderTest {
 		Assert.assertEquals(Tuple8.class, info.getTypeClass());
 	}
 
+
+
 	@Test(expected = IllegalArgumentException.class)
 	public void testWithInvalidValueType1() throws Exception {
 		CsvReader reader = getCsvReader();

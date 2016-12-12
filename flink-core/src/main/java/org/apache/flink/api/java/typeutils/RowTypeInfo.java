@@ -29,6 +29,7 @@ import org.apache.flink.types.Row;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -52,6 +53,28 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		for (int i = 0; i < types.length; i++) {
 			fieldNames[i] = "f" + i;
 		}
+	}
+
+	public RowTypeInfo(TypeInformation<?> mainType, int size, Map<Integer, TypeInformation<?>> additionalTypes) {
+		this(configureTypes(mainType, size, additionalTypes));
+	}
+
+	public RowTypeInfo(TypeInformation<?> mainType, int size) {
+		this(configureTypes(mainType, size, Collections.<Integer, TypeInformation<?>>emptyMap()));
+	}
+
+	private static TypeInformation<?>[] configureTypes(TypeInformation<?> mainType, int size, Map<Integer, TypeInformation<?>> additionalTypes) {
+		TypeInformation<?>[] types = new TypeInformation<?>[size];
+		Arrays.fill(types, mainType);
+		for (Map.Entry<Integer, TypeInformation<?>> e : additionalTypes.entrySet()) {
+			int i = e.getKey();
+			if (i < size) {
+				types[i] = e.getValue();
+			} else {
+				throw new IndexOutOfBoundsException(i + " is higher than or equal to" + size);
+			}
+		}
+		return types;
 	}
 
 	@Override

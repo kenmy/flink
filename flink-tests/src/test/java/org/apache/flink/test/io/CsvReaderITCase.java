@@ -20,6 +20,7 @@ package org.apache.flink.test.io;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple8;
@@ -32,6 +33,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Row;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -39,8 +41,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+
+import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class CsvReaderITCase extends MultipleProgramsTestBase {
@@ -120,6 +126,81 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 
 		expected = inputData;
 		compareResultAsTuples(result, expected);
+	}
+
+	private int rowSize = 29;
+	private String including = "0111111";
+	private String fileContent =
+		"1,2,3," + 4 + "," + 5.0d + "," + true +
+		",7,8,9,11,22,33,44,55,66,77,88,99,00," +
+		"111,222,333,444,555,666,777,888,999,000\n" +
+		"a,b,c," + 40 + "," + 50.0d + "," + false +
+		",g,h,i,aa,bb,cc,dd,ee,ff,gg,hh,ii,mm," +
+		"aaa,bbb,ccc,ddd,eee,fff,ggg,hhh,iii,mmm\n";
+
+	@Test
+	public void testWideRowType() throws Exception {
+		String dataPath = createInputData(fileContent);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Row> data = env
+			.readCsvFile(dataPath)
+			.rowType(String.class, rowSize);
+
+		List<Row> result = data.collect();
+
+		compareResultAsText(result, fileContent);
+	}
+
+	@Test
+	public void testWideRowTypeWithAdditionalTypeMapAndIncludedFields() throws Exception {
+		String dataPath = createInputData(fileContent);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Map<Integer, Class<?>> typeMap = new HashMap<>();
+		typeMap.put(2, Integer.class);
+		typeMap.put(3, Double.class);
+		typeMap.put(4, Boolean.class);
+
+		DataSet<Row> data = env
+			.readCsvFile(dataPath)
+			.includeFields(including)
+			.rowType(String.class, rowSize, typeMap);
+
+		List<Row> result = data.collect();
+
+		for (Row r: result) {
+			assertTrue(r.getField(2) instanceof Integer);
+			assertTrue(r.getField(3) instanceof Double);
+			assertTrue(r.getField(4) instanceof Boolean);
+		}
+
+		String s = StringUtils.repeat(",null", 23);
+		String expected =
+			"2,3,4,5.0,true,7" + s + "\n" +
+				"b,c,40,50.0,false,g" + s + "\n";
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testWideRowTypeWithIncludedFields() throws Exception {
+		String dataPath = createInputData(fileContent);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Row> data = env
+			.readCsvFile(dataPath)
+			.includeFields(including)
+			.rowType(String.class, rowSize);
+
+		List<Row> result = data.collect();
+
+
+		String s = StringUtils.repeat(",null", 23);
+		String expected =
+			"2,3,4,5.0,true,7" + s + "\n" +
+			"b,c,40,50.0,false,g" + s + "\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class POJOItem {

@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.io.ParseException
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.types.Row
 import org.apache.flink.api.table.runtime.io.RowCsvInputFormatTest.{PATH, createTempFile, testRemovingTrailingCR}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -32,6 +32,7 @@ import org.apache.flink.core.fs.{FileInputSplit, Path}
 import org.apache.flink.types.parser.{FieldParser, StringParser}
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
+
 import scala.collection.JavaConversions._
 
 class RowCsvInputFormatTest {
@@ -826,6 +827,46 @@ class RowCsvInputFormatTest {
     result = format.nextRecord(result)
     assertNull(result)
     assertTrue(format.reachedEnd)
+  }
+
+  @Test
+  def testWideCsv(): Unit = {
+
+    val rowSize = 29
+    val fileContent: String =
+      "1,2,3," + 4 + "," + 5.0d + "," + true +
+        ",7,8,9,11,22,33,44,55,66,77,88,99,00," +
+        "111,222,333,444,555,666,777,888,999,000\n" +
+        "a,b,c," + 40 + "," + 50.0d + "," + false +
+        ",g,h,i,aa,bb,cc,dd,ee,ff,gg,hh,ii,mm," +
+        "aaa,bbb,ccc,ddd,eee,fff,ggg,hhh,iii,mmm\n"
+
+    val split = createTempFile(fileContent)
+
+    val addTypes = Map[Int, TypeInformation[_]](
+      3 -> BasicTypeInfo.INT_TYPE_INFO,
+      4 -> BasicTypeInfo.DOUBLE_TYPE_INFO,
+      5 -> BasicTypeInfo.BOOLEAN_TYPE_INFO)
+
+    implicit def toJavaMap[S, J, I](m: Map[S, I])(implicit s2j: S => J) =
+      mapAsJavaMap(m.map { case (a: S, b: I) => (a: J, b: I) })
+
+    val typeInfo = new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, rowSize, addTypes)
+    val format = new RowCsvInputFormat(PATH, rowTypeInfo = typeInfo)
+    format.configure(new Configuration)
+    format.open(split)
+
+    var result = new Row(rowSize)
+
+    for (line <- fileContent.split("\n")) {
+      result = format.nextRecord(result)
+      line.split(',').zipWithIndex.foreach { case (e, i) =>
+        if (addTypes.isDefinedAt(i)) {
+          assertEquals(addTypes(i).getTypeClass, result.getField(i).getClass)
+        }
+        assertEquals(e, result.getField(i).toString)
+      }
+    }
   }
 }
 
