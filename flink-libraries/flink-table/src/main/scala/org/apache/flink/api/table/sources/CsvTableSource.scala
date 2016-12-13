@@ -23,7 +23,7 @@ import org.apache.flink.api.java.io.CsvInputFormat
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.table.TableException
 import org.apache.flink.types.Row
-import org.apache.flink.api.table.runtime.io.RowCsvInputFormat
+import org.apache.flink.api.java.io.RowCsvInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
