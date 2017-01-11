@@ -18,6 +18,7 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -69,10 +70,11 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 	 *            Stream Graph to execute
 	 * @param jarFiles
 	 * 			  List of jar file URLs to ship to the cluster
+	 * @param b
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	protected JobSubmissionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles, boolean b) throws ProgramInvocationException {
 		URL jarUrl;
 		try {
 			jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
@@ -84,7 +86,7 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 		allJarFiles.addAll(jarFiles);
 		allJarFiles.add(jarUrl);
 
-		return super.executeRemotely(streamGraph, allJarFiles);
+		return super.executeRemotely(streamGraph, allJarFiles, b);
 	}
 
 	public void setAsContext() {

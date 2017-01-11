@@ -21,6 +21,7 @@ package org.apache.flink.runtime.minicluster;
 import akka.actor.ActorSystem;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -420,12 +421,12 @@ public class MiniCluster {
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
 	 *         or if the job terminally failed.
 	 */
-	public void runDetached(JobGraph job) throws JobExecutionException {
+	public JobSubmissionResult runDetached(JobGraph job) throws JobExecutionException {
 		checkNotNull(job, "job is null");
 
 		synchronized (lock) {
 			checkState(running, "mini cluster is not running");
-			jobDispatcher.runDetached(job);
+			return jobDispatcher.runDetached(job);
 		}
 	}
 

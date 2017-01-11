@@ -29,6 +29,7 @@ import java.util.List;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
@@ -166,11 +167,19 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
+	public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+		StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
+		transformations.clear();
+		return executeRemotely(streamGraph, jarFiles, false);
+	}
+
+	@Override
 	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		transformations.clear();
-		return executeRemotely(streamGraph, jarFiles);
+		return (JobExecutionResult) executeRemotely(streamGraph, jarFiles, true);
 	}
 
 	/**
@@ -180,9 +189,10 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            Stream Graph to execute
 	 * @param jarFiles
 	 * 			  List of jar file URLs to ship to the cluster
+	 * @param b
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	protected JobSubmissionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles, boolean isNeedWait) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -206,7 +216,13 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		try {
-			return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
+			if (isNeedWait) {
+				return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader).getJobExecutionResult();
+			}else{
+				client.setDetached(false);
+				return client.run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader);
+			}
+
 		}
 		catch (ProgramInvocationException e) {
 			throw e;

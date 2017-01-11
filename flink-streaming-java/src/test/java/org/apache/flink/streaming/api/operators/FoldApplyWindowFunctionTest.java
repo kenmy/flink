@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -137,6 +138,11 @@ public class FoldApplyWindowFunctionTest {
 	}
 
 	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+
+		@Override
+		public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+			return null;
+		}
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {

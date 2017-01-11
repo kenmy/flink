@@ -20,11 +20,13 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.OnSubmitActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -173,7 +175,7 @@ public class MiniClusterJobDispatcher {
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
 	 *         or if the job terminally failed.
 	 */
-	public void runDetached(JobGraph job) throws JobExecutionException {
+	public JobSubmissionResult runDetached(JobGraph job) throws JobExecutionException {
 		checkNotNull(job);
 
 		LOG.info("Received job for detached execution: {} ({})", job.getName(), job.getJobID());
@@ -184,7 +186,9 @@ public class MiniClusterJobDispatcher {
 
 			DetachedFinalizer finalizer = new DetachedFinalizer(numJobManagers);
 
-			this.runners = startJobRunners(job, finalizer, finalizer);
+			this.runners = startJobRunners(job, finalizer, finalizer, finalizer);
+
+			return finalizer.getJobSubmissionResult();
 		}
 	}
 
@@ -208,7 +212,7 @@ public class MiniClusterJobDispatcher {
 			checkState(!shutdown, "mini cluster is shut down");
 			checkState(runners == null, "mini cluster can only execute one job at a time");
 
-			this.runners = startJobRunners(job, sync, sync);
+			this.runners = startJobRunners(job, sync, sync, null);
 		}
 
 		try {
@@ -223,7 +227,8 @@ public class MiniClusterJobDispatcher {
 	private JobManagerRunner[] startJobRunners(
 			JobGraph job,
 			OnCompletionActions onCompletion,
-			FatalErrorHandler errorHandler) throws JobExecutionException {
+			FatalErrorHandler errorHandler,
+			OnSubmitActions onSubmit) throws JobExecutionException {
 
 		LOG.info("Starting {} JobMaster(s) for job {} ({})", numJobManagers, job.getName(), job.getJobID());
 
@@ -244,6 +249,9 @@ public class MiniClusterJobDispatcher {
 				runners[i] = new JobManagerRunner(job, configuration,
 						rpcServices[i], haServices, jobManagerServices, metricRegistry, 
 						onCompletion, errorHandler);
+				if (onSubmit != null) {
+					onSubmit.jobSubmitted(new JobSubmissionResult(job.getJobID()));
+				}
 				runners[i].start();
 			}
 			catch (Throwable t) {
@@ -296,9 +304,11 @@ public class MiniClusterJobDispatcher {
 	 * In the case of a high-availability test setup, there may be multiple runners.
 	 * After that, it marks the mini cluster as ready to receive new jobs.
 	 */
-	private class DetachedFinalizer implements OnCompletionActions, FatalErrorHandler {
+	private class DetachedFinalizer implements OnCompletionActions, FatalErrorHandler, OnSubmitActions {
 
 		private final AtomicInteger numJobManagersToWaitFor;
+
+		private volatile JobSubmissionResult result;
 
 		private DetachedFinalizer(int numJobManagersToWaitFor) {
 			this.numJobManagersToWaitFor = new AtomicInteger(numJobManagersToWaitFor);
@@ -329,6 +339,18 @@ public class MiniClusterJobDispatcher {
 				MiniClusterJobDispatcher.this.runners = null;
 			}
 		}
+
+		@Override
+		public void jobSubmitted(JobSubmissionResult result) {
+			this.result = result;
+		}
+
+		@Override
+		public JobSubmissionResult getJobSubmissionResult() {
+			return result;
+		}
+
+
 	}
 
 	// ------------------------------------------------------------------------

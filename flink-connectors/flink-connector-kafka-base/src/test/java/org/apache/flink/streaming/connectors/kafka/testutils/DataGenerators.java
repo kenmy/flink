@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -217,6 +218,11 @@ public class DataGenerators {
 		}
 
 		public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+
+			@Override
+			public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+				return null;
+			}
 
 			@Override
 			public JobExecutionResult execute(String jobName) throws Exception {

@@ -19,11 +19,13 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.DetachedEnvironment;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -36,6 +38,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
 	private final ContextEnvironment ctx;
+	private String jobName;
 
 	protected StreamContextEnvironment(ContextEnvironment ctx) {
 		this.ctx = ctx;
@@ -45,6 +48,28 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
 					ConfigConstants.DEFAULT_PARALLELISM_KEY,
 					ConfigConstants.DEFAULT_PARALLELISM));
+		}
+	}
+
+	@Override
+	public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+		this.jobName = jobName;
+		Preconditions.checkNotNull("Streaming Job name should not be null.");
+
+		StreamGraph streamGraph = this.getStreamGraph();
+		streamGraph.setJobName(jobName);
+
+		transformations.clear();
+
+		// execute the programs
+		if (ctx instanceof DetachedEnvironment) {
+			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
+			((DetachedEnvironment) ctx).setDetachedPlan(streamGraph);
+			return DetachedEnvironment.DetachedJobExecutionResult.INSTANCE;
+		} else {
+			return ctx
+				.getClient()
+				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointRestoreSettings());
 		}
 	}
 

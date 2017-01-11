@@ -46,7 +46,7 @@ public class SocketWindowWordCount {
 		final int port;
 		try {
 			final ParameterTool params = ParameterTool.fromArgs(args);
-			port = params.getInt("port");
+			port = 10000;
 		} catch (Exception e) {
 			System.err.println("No port specified. Please run 'SocketWindowWordCount --port <port>', " +
 					"where port is the address of the text server");
@@ -86,7 +86,11 @@ public class SocketWindowWordCount {
 		// print the results with a single thread, rather than in parallel
 		windowCounts.print().setParallelism(1);
 
-		env.execute("Socket Window WordCount");
+		env.executeWithControl("Socket Window WordCount");
+
+		for(WordWithCount i : env.sampleStream(windowCounts, org.apache.flink.api.common.time.Time.seconds(5))){
+			System.out.println("aaaaa " + i.toString());
+		};
 	}
 
 	// ------------------------------------------------------------------------

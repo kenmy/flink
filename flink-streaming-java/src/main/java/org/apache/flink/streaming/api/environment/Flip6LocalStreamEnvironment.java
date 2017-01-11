@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
@@ -70,6 +71,45 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		this.conf = config == null ? new Configuration() : config;
 		setParallelism(1);
+	}
+
+	@Override
+	public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+		// transform the streaming program into a JobGraph
+		StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
+
+		// TODO - temp fix to enforce restarts due to a bug in the allocation protocol
+		streamGraph.getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 5));
+
+		JobGraph jobGraph = streamGraph.getJobGraph();
+		jobGraph.setAllowQueuedScheduling(true);
+
+		Configuration configuration = new Configuration();
+		configuration.addAll(jobGraph.getJobConfiguration());
+		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+
+		// add (and override) the settings with what the user defined
+		configuration.addAll(this.conf);
+
+		MiniClusterConfiguration cfg = new MiniClusterConfiguration(configuration);
+
+		// Currently we do not reuse slot anymore,
+		// so we need to sum up the parallelism of all vertices
+		int slotsCount = 0;
+		for (JobVertex jobVertex : jobGraph.getVertices()) {
+			slotsCount += jobVertex.getParallelism();
+		}
+		cfg.setNumTaskManagerSlots(slotsCount);
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running job on local embedded Flink mini cluster");
+		}
+
+		MiniCluster miniCluster = new MiniCluster(cfg);
+		miniCluster.start();
+		miniCluster.waitUntilTaskManagerRegistrationsComplete();
+		return miniCluster.runDetached(jobGraph);
 	}
 
 	/**

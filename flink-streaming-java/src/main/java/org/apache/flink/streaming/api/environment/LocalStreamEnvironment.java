@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -70,6 +71,32 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		
 		this.conf = config == null ? new Configuration() : config;
+	}
+
+	@Override
+	public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+		// transform the streaming program into a JobGraph
+		StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
+
+		JobGraph jobGraph = streamGraph.getJobGraph();
+
+		Configuration configuration = new Configuration();
+		configuration.addAll(jobGraph.getJobConfiguration());
+
+		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
+
+		// add (and override) the settings with what the user defined
+		configuration.addAll(this.conf);
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running job on local embedded Flink mini cluster");
+		}
+
+		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true);
+		exec.start();
+		return exec.submitJobDetached(jobGraph);
 	}
 
 	/**

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
@@ -49,6 +50,11 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute() throws Exception {
 		return execute("");
+	}
+
+	@Override
+	public JobSubmissionResult executeWithControl(String jobName) throws Exception {
+		return execute(jobName);
 	}
 
 	@Override

@@ -27,4 +27,5 @@ public interface OnCompletionActions {
 	void jobFailed(Throwable cause);
 
 	void jobFinishedByOther();
+
 }
