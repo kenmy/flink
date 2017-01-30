@@ -54,11 +54,7 @@ import org.apache.flink.streaming.api.functions.sink.*;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamFilter;
-import org.apache.flink.streaming.api.operators.StreamFlatMap;
-import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
@@ -1089,9 +1085,12 @@ public class DataStream<T> {
 		return transformation;
 	}
 
-	public List<T> sampleStream(org.apache.flink.api.common.time.Time interval) throws InterruptedException {
-		CollectSinkFunction<T> collectFunction = new CollectSinkFunction<>();
-		addSink(collectFunction);
-		return collectFunction.getCollectedData(interval);
+	public SingleOutputStreamOperator<T> sample(Sampler<T> sampler){
+		TypeInformation<T> outType = getType();
+
+
+		CollectSinkFunction<T> collectFunction = new CollectSinkFunction<>(sampler);
+
+		return transform("Collect", outType, new CollectFilter<T>(clean(collectFunction)));
 	}
 }

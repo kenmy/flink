@@ -389,7 +389,7 @@ public class AccumulatorLiveITCase {
 
 		@Override
 		public JobSubmissionResult executeWithControl(String jobName) throws Exception {
-			return new RuntimeException("This should not be called.");
+			throw new RuntimeException("This should not be called.");
 		}
 
 		@Override

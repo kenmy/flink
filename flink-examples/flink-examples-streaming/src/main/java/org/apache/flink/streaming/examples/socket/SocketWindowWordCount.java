@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.Sampler;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
@@ -61,6 +62,7 @@ public class SocketWindowWordCount {
 		// get input data by connecting to the socket
 		DataStream<String> text = env.socketTextStream("localhost", port, "\n");
 
+		Sampler<WordWithCount> sampler = new Sampler<>();
 		// parse the data, group it, window it, and aggregate the counts
 		DataStream<WordWithCount> windowCounts = text
 
@@ -81,16 +83,15 @@ public class SocketWindowWordCount {
 					public WordWithCount reduce(WordWithCount a, WordWithCount b) {
 						return new WordWithCount(a.word, a.count + b.count);
 					}
-				});
+				})
+				.sample(sampler);
 
 		// print the results with a single thread, rather than in parallel
 		windowCounts.print().setParallelism(1);
-
 		env.executeWithControl("Socket Window WordCount");
-
-		for(WordWithCount i : env.sampleStream(windowCounts, org.apache.flink.api.common.time.Time.seconds(5))){
-			System.out.println("aaaaa " + i.toString());
-		};
+		for(WordWithCount i : sampler.getData(org.apache.flink.api.common.time.Time.seconds(10))){
+			System.out.println("Sampled row: " + i.toString());
+		}
 	}
 
 	// ------------------------------------------------------------------------

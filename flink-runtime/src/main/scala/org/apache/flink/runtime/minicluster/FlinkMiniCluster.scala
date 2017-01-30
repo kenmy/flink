@@ -404,8 +404,8 @@ abstract class FlinkMiniCluster(
   }
 
   def stop(): Unit = {
-    LOG.info("Stopping FlinkMiniCluster.")
     shutdown()
+    LOG.info("Stopping FlinkMiniCluster.")
     awaitTermination()
 
     jobManagerLeaderRetrievalService.foreach(_.stop())

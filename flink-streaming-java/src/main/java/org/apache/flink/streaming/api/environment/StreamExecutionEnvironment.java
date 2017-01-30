@@ -1782,10 +1782,4 @@ public abstract class StreamExecutionEnvironment {
 		contextEnvironmentFactory = null;
 	}
 
-	public <T> Iterable<T> sampleStream(DataStream<T> src, Time interval) throws InterruptedException {
-		List<T> items = src.sampleStream(interval);
-		transformations.remove(transformations.size() - 1);
-		return items;
-	}
-
 }
